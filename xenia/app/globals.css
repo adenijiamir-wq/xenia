@@ -1,0 +1,162 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-white text-charcoal-900;
+  }
+}
+
+@layer components {
+  /* Premium Button Styles */
+  .btn-primary {
+    @apply bg-scarlet-500 text-white px-6 py-3 rounded-lg font-semibold 
+           transition-all duration-200 hover:bg-scarlet-600 hover:shadow-lg 
+           active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-scarlet-500 border-2 border-scarlet-500 px-6 py-3 
+           rounded-lg font-semibold transition-all duration-200 
+           hover:bg-scarlet-50 active:scale-95;
+  }
+
+  .btn-ghost {
+    @apply text-charcoal-700 px-6 py-3 rounded-lg font-medium 
+           transition-all duration-200 hover:bg-charcoal-50;
+  }
+
+  /* Card Styles */
+  .card {
+    @apply bg-white rounded-xl border border-charcoal-100 
+           shadow-sm hover:shadow-xl transition-all duration-300;
+  }
+
+  .product-card {
+    @apply bg-white rounded-xl overflow-hidden border border-charcoal-100
+           shadow-sm hover:shadow-2xl hover:-translate-y-2 
+           transition-all duration-300 cursor-pointer;
+  }
+
+  /* Input Styles */
+  .input-primary {
+    @apply w-full px-4 py-3 rounded-lg border-2 border-charcoal-200
+           focus:border-scarlet-500 focus:outline-none focus:ring-2 
+           focus:ring-scarlet-100 transition-all duration-200;
+  }
+
+  /* Hero Gradient */
+  .hero-gradient {
+    background: linear-gradient(135deg, #CC0033 0%, #8e1414 100%);
+  }
+
+  /* Section Container */
+  .container-custom {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Badge Styles */
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
+  }
+
+  .badge-deal {
+    @apply bg-scarlet-500 text-white;
+  }
+
+  .badge-new {
+    @apply bg-green-500 text-white;
+  }
+
+  .badge-service {
+    @apply bg-blue-500 text-white;
+  }
+
+  /* Grid Layouts */
+  .product-grid {
+    @apply grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6;
+  }
+
+  .category-grid {
+    @apply grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6;
+  }
+
+  /* Animations */
+  .animate-on-scroll {
+    @apply opacity-0 translate-y-8;
+    animation: slideUp 0.6s ease-out forwards;
+  }
+
+  /* Custom Scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-charcoal-100 rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-charcoal-300 rounded-full hover:bg-scarlet-500;
+  }
+
+  /* Star Rating */
+  .stars {
+    @apply text-yellow-400;
+  }
+
+  /* Image Overlay */
+  .image-overlay {
+    @apply absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent;
+  }
+
+  /* Loading Spinner */
+  .spinner {
+    @apply h-8 w-8 animate-spin rounded-full border-4 border-charcoal-200 border-t-scarlet-500;
+  }
+}
+
+/* Custom animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Selection color */
+::selection {
+  background-color: #CC0033;
+  color: white;
+}
