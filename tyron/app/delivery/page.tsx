@@ -5,19 +5,22 @@ import { Truck } from 'lucide-react';
 
 export default function DeliveryPage() {
   const deliveryItems = [
-    {
-      id: 'del-1',
-      name: 'Pizza Express',
-      description: 'Hot pizza delivered in 30 mins',
-      price: 8,
-      image: '/images/placeholder.jpg',
-      category: 'Food Delivery',
-      rating: 4.8,
-      reviewCount: 234,
-      seller: { name: 'Quick Eats', id: 'seller-1' },
-      type: 'service' as const,
-      distance: '1.0 km',
-    },
+  {
+    id: 'del-1',
+    name: 'Pizza Express',
+    description: 'Hot pizza in 30 mins',
+    price: 8,
+    image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=600',
+    category: 'Food Delivery',
+    rating: 4.8,
+    reviewCount: 234,
+    reviews: [],
+    location: { lat: 0, lng: 0 },
+    seller: { name: 'Quick Eats', id: 'seller-1' },
+    type: 'service' as const,
+    distance: '1.0 km',
+  },
+];
     {
       id: 'del-2',
       name: 'Burger Joint',
