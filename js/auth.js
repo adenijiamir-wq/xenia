@@ -66,8 +66,8 @@ export async function doSignOut() {
 window.doSignOut = doSignOut;
 
 // ── Auth modal ───────────────────────────────────────────────
-export function openAuth() {
-  let mode = 'signin';
+export function openAuth(initialMode = 'signin') {
+  let mode = initialMode;
 
   const render = () => {
     showModal(`
