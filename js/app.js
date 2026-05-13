@@ -11,7 +11,7 @@ function refreshAvatar() {
   if (state.user && state.profile) {
     wrap.outerHTML = `<div id="navAvatarWrap">${avatarHtml(state.profile, 'sm')}</div>`;
   } else {
-    wrap.outerHTML = `<div id="navAvatarWrap" class="w-8 h-8 rounded-full bg-ink-200 flex items-center justify-center text-ink-600 font-semibold text-sm">?</div>`;
+    wrap.outerHTML = `<div id="navAvatarWrap" class="w-8 h-8 rounded-full bg-ink-200 flex items-center justify-center text-ink-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></div>`;
   }
 }
 window.refreshAvatar = refreshAvatar;
@@ -35,7 +35,9 @@ function buildUserMenu() {
     `;
   } else {
     menu.innerHTML = `
-      <button onclick="closeUserMenu();window.openAuth()" class="block w-full text-left px-4 py-3 hover:bg-ink-50 text-sm font-semibold">Sign in / Sign up</button>
+      <button onclick="closeUserMenu();window.openAuth('signin')" class="block w-full text-left px-4 py-3 hover:bg-ink-50 text-sm font-semibold">Sign in</button>
+      <div class="border-t border-ink-100"></div>
+      <button onclick="closeUserMenu();window.openAuth('signup')" class="block w-full text-left px-4 py-3 hover:bg-ink-50 text-sm font-semibold text-scarlet-500">Create account</button>
     `;
   }
 }
