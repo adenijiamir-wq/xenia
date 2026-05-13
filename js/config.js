@@ -1,7 +1,7 @@
 // ── Firebase ────────────────────────────────────────────────
 import { initializeApp }                from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, GoogleAuthProvider }  from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore }                 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { initializeFirestore }          from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey:            "AIzaSyBUeG9xUQInB6kCQyVh4u7ZYZpQ2fIPoq0",
@@ -15,7 +15,9 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 
 export const auth           = getAuth(firebaseApp);
-export const db             = getFirestore(firebaseApp);
+export const db             = initializeFirestore(firebaseApp, {
+  experimentalAutoDetectLongPolling: true
+});
 export const googleProvider = new GoogleAuthProvider();
 
 // ── Cloudinary ──────────────────────────────────────────────
