@@ -15,9 +15,9 @@ export async function renderHome() {
     <!-- Hero -->
     <section class="bg-gradient-to-br from-scarlet-500 via-scarlet-600 to-scarlet-700 text-white">
       <div class="max-w-4xl mx-auto px-6 py-16 sm:py-24 text-center">
-        <h1 class="text-4xl sm:text-5xl md:text-6xl font-black mb-4 leading-tight">The student marketplace</h1>
-        <p class="text-lg sm:text-xl text-scarlet-100 mb-8 max-w-2xl mx-auto">
-          Buy, sell, and book services with verified students on your campus.
+        <h1 class="text-4xl sm:text-5xl md:text-6xl font-black mb-4 leading-[1.05]">List it. Get found.<br class="hidden sm:inline"> Get paid.</h1>
+        <p class="text-lg sm:text-xl text-scarlet-100 mb-8 max-w-2xl mx-auto leading-relaxed">
+          From homemade cookies to hairstyling to tutoring — list anything you sell or any service you offer, and let people find you.
         </p>
         <div class="flex flex-wrap gap-3 justify-center">
           <a href="#products" class="bg-white text-scarlet-600 font-bold px-7 py-3 rounded-full hover:bg-scarlet-50 transition">Browse listings</a>
@@ -36,12 +36,15 @@ export async function renderHome() {
     </section>
 
     <!-- Trust section -->
-    <section class="px-4 py-10 bg-ink-50">
-      <h2 class="text-2xl font-bold mb-6 text-center">Why Xenia is safe</h2>
-      <div class="grid sm:grid-cols-3 gap-4 max-w-4xl mx-auto">
-        ${trustCard('🎓', 'Verified students', 'Sellers verify with a school email so you know you\'re dealing with real classmates.')}
-        ${trustCard('⭐', 'Ratings & reviews', 'Every completed transaction can be reviewed. See a seller\'s reputation first.')}
-        ${trustCard('📍', 'Campus meetups', 'We always suggest public campus spots — library, dining hall, student center.')}
+    <section class="px-4 py-12 bg-ink-50">
+      <div class="max-w-4xl mx-auto">
+        <h2 class="text-2xl sm:text-3xl font-bold mb-2 text-center">How Xenia keeps it safe</h2>
+        <p class="text-ink-500 text-center mb-8 max-w-xl mx-auto">A simple platform with real people, real reputations, and meetups on your terms.</p>
+        <div class="grid sm:grid-cols-3 gap-4">
+          ${trustCard('1', 'Real profiles only', 'Sellers verify their identity before listing. No anonymous accounts on the platform.')}
+          ${trustCard('2', 'Built-in reputation', 'Buyers and sellers rate each other after every transaction. Reputation builds over time.')}
+          ${trustCard('3', 'Safe by design', 'Meet in public, inspect before you pay. Xenia never holds your money — keeping it simple.')}
+        </div>
       </div>
     </section>
   `);
@@ -64,11 +67,11 @@ export async function renderHome() {
   }
 }
 
-function trustCard(emoji, title, desc) {
-  return `<div class="bg-white rounded-2xl p-5 border border-ink-200">
-    <div class="text-3xl mb-2">${emoji}</div>
+function trustCard(num, title, desc) {
+  return `<div class="bg-white rounded-2xl p-6 border border-ink-200">
+    <div class="w-10 h-10 rounded-full bg-scarlet-100 text-scarlet-600 flex items-center justify-center font-black text-lg mb-3">${num}</div>
     <h3 class="font-bold mb-1">${title}</h3>
-    <p class="text-sm text-ink-600">${desc}</p>
+    <p class="text-sm text-ink-600 leading-relaxed">${desc}</p>
   </div>`;
 }
 
@@ -76,13 +79,19 @@ function trustCard(emoji, title, desc) {
 let _currentListings = [];
 
 export async function renderListings(type) {
-  const label = type === 'good' ? 'Products' : 'Services';
+  const label    = type === 'good' ? 'Products' : 'Services';
+  const tagline  = type === 'good'
+    ? 'Whatever you offer, someone needs it.'
+    : 'Your skills deserve customers.';
   const app   = document.getElementById('app');
 
   setHtml(app, `
     <div class="px-4 py-6">
-      <div class="flex items-center justify-between mb-5">
-        <h1 class="text-3xl font-bold">${label}</h1>
+      <div class="flex items-start justify-between mb-5 gap-4">
+        <div>
+          <h1 class="text-3xl font-bold">${label}</h1>
+          <p class="text-ink-500 mt-1">${tagline}</p>
+        </div>
         <select id="sortSelect" class="bg-ink-100 rounded-full px-4 py-2 text-sm font-medium border-0 outline-none">
           <option value="newest">Newest</option>
           <option value="price-low">Price: low to high</option>
