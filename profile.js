@@ -29,6 +29,17 @@ export async function renderUserProfile(uid) {
     }
     listings.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
+    // Fetch reviews for this user
+    const allReviewsSnap = await get(ref(rtdb, 'reviews'));
+    const reviews = [];
+    if (allReviewsSnap.exists()) {
+      allReviewsSnap.forEach(child => {
+        const r = child.val();
+        if (r.reviewedId === uid) reviews.push({ id: child.key, ...r });
+      });
+    }
+    reviews.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
     setHtml(app, `
       <div class="max-w-3xl mx-auto px-4 py-6">
         <div class="bg-gradient-to-br from-scarlet-500 to-scarlet-700 rounded-3xl p-6 text-white mb-6">
@@ -58,6 +69,23 @@ export async function renderUserProfile(uid) {
         ${listings.length
           ? `<div class="grid grid-cols-2 sm:grid-cols-3 gap-4">${listings.map(listingCard).join('')}</div>`
           : `<p class="text-center py-10 text-ink-500">No active listings.</p>`}
+
+        <h2 class="text-xl font-bold mt-8 mb-4">Reviews (${reviews.length})</h2>
+        ${reviews.length
+          ? `<div class="space-y-3">${reviews.map(r => `
+              <div class="bg-ink-50 rounded-2xl p-4">
+                <div class="flex items-center gap-3 mb-2">
+                  ${avatarHtml({ photoURL: r.reviewerPhoto, displayName: r.reviewerName, uid: r.reviewerId }, 'sm')}
+                  <div class="flex-1 min-w-0">
+                    <p class="font-semibold text-sm">${escapeHtml(r.reviewerName || 'Anonymous')}</p>
+                    <p class="text-xs text-ink-400">${timeAgo(r.createdAt)}</p>
+                  </div>
+                  <div class="text-amber-400 text-sm">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</div>
+                </div>
+                ${r.comment ? `<p class="text-sm text-ink-700">${escapeHtml(r.comment)}</p>` : ''}
+              </div>
+            `).join('')}</div>`
+          : `<p class="text-center py-8 text-ink-500">No reviews yet.</p>`}
       </div>
     `);
   } catch (e) { console.error(e); toast('Failed to load profile', 'error'); }
