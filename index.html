@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#CC0033">
+  <title>XENIA — List it. Get found. Get paid.</title>
+  <meta name="description" content="Baked goods, braids, tutoring, photography, repairs — if you make it or do it, someone needs it. List on Xenia and start earning.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            scarlet: { 50:'#fef2f2',100:'#fee2e2',200:'#fecaca',500:'#CC0033',600:'#b30029',700:'#991f1f',900:'#450011' },
+            ink: { 50:'#f9fafb',100:'#f3f4f6',200:'#e5e7eb',300:'#d1d5db',400:'#9ca3af',500:'#6b7280',600:'#4b5563',700:'#374151',800:'#1f2937',900:'#111827' }
+          },
+          fontFamily: { sans: ['Inter','system-ui','sans-serif'] }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-white text-ink-900 font-sans">
+
+  <header class="sticky top-0 z-40 bg-white border-b border-ink-200">
+    <div class="max-w-7xl mx-auto px-4 h-14 flex items-center gap-3">
+      <a href="#home" class="text-2xl font-black text-scarlet-500 tracking-tight shrink-0">XENIA</a>
+      <div class="flex-1 max-w-md mx-auto hidden sm:block">
+        <div class="relative">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <input id="searchBar" type="text" placeholder="Search products & services..." class="w-full bg-ink-100 rounded-full pl-10 pr-4 py-2 text-sm placeholder-ink-400 border-0 focus:ring-2 focus:ring-scarlet-200 focus:bg-white outline-none">
+        </div>
+      </div>
+      <div class="flex items-center gap-1 ml-auto relative">
+        <button id="btnMessages" class="p-2 rounded-full hover:bg-ink-100 relative">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+          <span id="msgBadge" class="hidden absolute -top-0.5 -right-0.5 bg-scarlet-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1"></span>
+        </button>
+        <button id="btnSellDesktop" class="hidden sm:flex items-center gap-1.5 bg-scarlet-500 hover:bg-scarlet-600 text-white text-sm font-semibold px-4 py-2 rounded-full ml-1 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+          Sell
+        </button>
+        <button id="btnAvatar" class="p-1 rounded-full hover:bg-ink-100 ml-1">
+          <div id="navAvatarWrap" class="w-8 h-8 rounded-full bg-ink-200 flex items-center justify-center text-ink-500">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+          </div>
+        </button>
+        <div id="userMenu" class="hidden absolute right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-ink-200 py-1.5 w-56 z-50"></div>
+      </div>
+    </div>
+    <div class="px-4 pb-2 sm:hidden">
+      <div class="relative">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input id="searchBarMobile" type="text" placeholder="Search..." class="w-full bg-ink-100 rounded-full pl-10 pr-4 py-2 text-sm placeholder-ink-400 border-0 outline-none">
+      </div>
+    </div>
+    <nav class="border-t border-ink-100 overflow-x-auto scrollbar-hide">
+      <div class="max-w-7xl mx-auto px-4 flex gap-1 h-10 items-center text-sm whitespace-nowrap">
+        <a href="#home" data-nav="home" class="nav-link">Home</a>
+        <a href="#products" data-nav="products" class="nav-link">Products</a>
+        <a href="#services" data-nav="services" class="nav-link">Services</a>
+        <a href="#my-listings" data-nav="my-listings" class="nav-link">My listings</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="app" class="max-w-7xl mx-auto min-h-screen"></main>
+
+  <button id="btnSellMobile" class="sm:hidden fixed bottom-5 right-5 bg-scarlet-500 hover:bg-scarlet-600 text-white rounded-full shadow-xl w-14 h-14 flex items-center justify-center z-30 transition">
+    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+  </button>
+
+  <div id="modalRoot"></div>
+  <div id="toastRoot" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 pointer-events-none w-full max-w-sm px-4"></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
