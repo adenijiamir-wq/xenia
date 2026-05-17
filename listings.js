@@ -4,7 +4,7 @@ import {
 
 import { rtdb, uploadImage } from './config.js';
 import { state } from './state.js';
-import { $, $$, escapeHtml, toast, setHtml, skeletonGrid, listingCard, avatarHtml, timeAgo } from './helpers.js';
+import { $, $$, escapeHtml, toast, setHtml, skeletonGrid, listingCard, avatarHtml, timeAgo, showModal, closeModal } from './helpers.js';
 
 // ── Helper: fetch all listings from RTDB and filter ─────────
 async function fetchListings(filters = {}) {
@@ -223,6 +223,14 @@ export async function renderMyListings() {
 // ── Sell / Edit ──────────────────────────────────────────────
 export async function renderSell(editId = null) {
   if (!state.user) { window.openAuth(); return; }
+
+  // Require photo + phone before listing
+  if (!editId && (!state.profile.photoURL || !state.profile.phone)) {
+    toast('Complete your profile first — photo and phone required to list', 'error');
+    setTimeout(() => window.navigate('#profile'), 300);
+    return;
+  }
+
   const editing = !!editId;
   const app = document.getElementById('app');
 
@@ -364,12 +372,131 @@ export async function renderSell(editId = null) {
 
 // ── Actions ──────────────────────────────────────────────────
 window.markSold = async (id) => {
-  if (!confirm('Mark as sold?')) return;
-  await update(ref(rtdb, `listings/${id}`), { status: 'sold' });
-  const u = state.profile;
-  await update(ref(rtdb, `users/${state.user.uid}`), { transactionsCompleted: (u.transactionsCompleted || 0) + 1 });
-  toast('Marked as sold!', 'success');
-  window.navigate('#my-listings');
+  // Find who messaged about this listing (potential buyers)
+  const listingSnap = await get(ref(rtdb, `listings/${id}`));
+  if (!listingSnap.exists()) return;
+  const listing = listingSnap.val();
+
+  const userConvsSnap = await get(ref(rtdb, `userConversations/${state.user.uid}`));
+  const buyers = [];
+  if (userConvsSnap.exists()) {
+    for (const cid of Object.keys(userConvsSnap.val())) {
+      const cs = await get(ref(rtdb, `conversations/${cid}`));
+      if (!cs.exists()) continue;
+      const conv = cs.val();
+      if (conv.listingId === id) {
+        const otherId = Object.keys(conv.participants || {}).find(p => p !== state.user.uid);
+        if (otherId) {
+          const other = conv.participantInfo?.[otherId] || {};
+          buyers.push({ uid: otherId, displayName: other.displayName || 'Unknown', photoURL: other.photoURL });
+        }
+      }
+    }
+  }
+
+  showModal(`
+    <div class="p-6">
+      <h2 class="text-2xl font-bold mb-1">Mark as sold</h2>
+      <p class="text-ink-500 text-sm mb-5">Rate your buyer to build trust on the platform.</p>
+
+      ${buyers.length > 0 ? `
+        <div class="mb-5">
+          <label class="block text-sm font-bold mb-2">Who bought it?</label>
+          <div class="space-y-2" id="buyerSelect">
+            ${buyers.map((b, i) => `
+              <label class="flex items-center gap-3 p-3 border-2 border-ink-200 rounded-xl cursor-pointer hover:bg-ink-50 transition has-[:checked]:border-scarlet-500 has-[:checked]:bg-scarlet-50">
+                <input type="radio" name="buyer" value="${b.uid}" class="sr-only" ${i === 0 ? 'checked' : ''}>
+                ${avatarHtml(b, 'sm')}
+                <span class="font-medium">${escapeHtml(b.displayName)}</span>
+              </label>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="mb-5">
+          <label class="block text-sm font-bold mb-2">Rate the buyer</label>
+          <div id="starRating" class="flex gap-1">
+            ${[1,2,3,4,5].map(n => `<button type="button" data-star="${n}" class="star-btn text-3xl text-ink-300 hover:text-amber-400 transition" onclick="window._selectStar(${n})">&#9733;</button>`).join('')}
+          </div>
+          <input type="hidden" id="ratingValue" value="5">
+        </div>
+
+        <div class="mb-5">
+          <label class="block text-sm font-bold mb-2">Comment <span class="font-normal text-ink-400">(optional)</span></label>
+          <textarea id="reviewComment" rows="2" placeholder="How was the transaction?" class="w-full bg-ink-100 rounded-xl px-4 py-3 focus:ring-2 focus:ring-scarlet-200 focus:bg-white outline-none resize-none"></textarea>
+        </div>
+      ` : `
+        <p class="text-ink-500 text-sm mb-5">No one messaged about this listing yet, so there's no buyer to rate. The listing will just be marked as sold.</p>
+      `}
+
+      <div class="flex gap-2">
+        <button onclick="closeModal()" class="flex-1 bg-ink-100 hover:bg-ink-200 font-semibold py-3 rounded-full transition">Cancel</button>
+        <button id="confirmSoldBtn" onclick="window._confirmSold('${id}')" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 rounded-full transition">Confirm sold</button>
+      </div>
+    </div>
+  `);
+
+  // Initialize stars to 5
+  window._selectStar(5);
+};
+
+window._selectStar = (n) => {
+  document.querySelectorAll('.star-btn').forEach((btn, i) => {
+    btn.style.color = i < n ? '#f59e0b' : '#d1d5db';
+  });
+  const input = document.getElementById('ratingValue');
+  if (input) input.value = n;
+};
+
+window._confirmSold = async (listingId) => {
+  const btn = document.getElementById('confirmSoldBtn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  try {
+    // Mark listing as sold
+    await update(ref(rtdb, `listings/${listingId}`), { status: 'sold' });
+    await update(ref(rtdb, `users/${state.user.uid}`), { transactionsCompleted: (state.profile.transactionsCompleted || 0) + 1 });
+
+    // Save review if buyer was selected
+    const buyerRadio = document.querySelector('input[name="buyer"]:checked');
+    if (buyerRadio) {
+      const buyerId = buyerRadio.value;
+      const rating  = parseInt(document.getElementById('ratingValue')?.value || '5');
+      const comment = document.getElementById('reviewComment')?.value?.trim() || '';
+
+      const reviewRef = push(ref(rtdb, 'reviews'));
+      await set(reviewRef, {
+        id:           reviewRef.key,
+        reviewerId:   state.user.uid,
+        reviewerName: state.profile.displayName,
+        reviewerPhoto: state.profile.photoURL || null,
+        reviewedId:   buyerId,
+        listingId,
+        rating,
+        comment,
+        createdAt:    Date.now()
+      });
+
+      // Update buyer's average rating
+      const buyerSnap = await get(ref(rtdb, `users/${buyerId}`));
+      if (buyerSnap.exists()) {
+        const buyer = buyerSnap.val();
+        const oldCount = buyer.reviewCount || 0;
+        const oldRating = buyer.rating || 0;
+        const newCount = oldCount + 1;
+        const newRating = ((oldRating * oldCount) + rating) / newCount;
+        await update(ref(rtdb, `users/${buyerId}`), { rating: Math.round(newRating * 10) / 10, reviewCount: newCount });
+      }
+    }
+
+    closeModal();
+    toast('Marked as sold! Review saved.', 'success');
+    window.navigate('#my-listings');
+  } catch (e) {
+    console.error(e);
+    toast('Failed to save', 'error');
+    btn.disabled = false; btn.textContent = 'Confirm sold';
+  }
 };
 
 window.deleteListing = async (id) => {
