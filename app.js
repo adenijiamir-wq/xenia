@@ -105,7 +105,13 @@ initAuthObserver(
   // signed out
   () => {
     refreshAvatar();
-    handleRoute();
+    const route = location.hash.slice(1).split('/')[0];
+    const authRoutes = ['my-listings', 'messages', 'profile', 'sell', 'edit-listing', 'user'];
+    if (authRoutes.includes(route)) {
+      navigate('#home');
+    } else {
+      handleRoute();
+    }
   }
 );
 
