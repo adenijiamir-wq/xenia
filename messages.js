@@ -2,7 +2,7 @@ import {
   ref, get, set, push, update, onValue, off
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-import { rtdb } from './config.js';
+import { rtdb, sendNotificationEmail } from './config.js';
 import { state } from './state.js';
 import { escapeHtml, toast, setHtml, avatarHtml, timeAgo } from './helpers.js';
 
@@ -163,6 +163,19 @@ export async function renderConversation(convId) {
         lastMessageAt: Date.now(),
         [`unread/${otherId}`]: currentUnread + 1
       });
+
+      // Send email notification to recipient
+      const recipientSnap = await get(ref(rtdb, `users/${otherId}`));
+      if (recipientSnap.exists()) {
+        const recipient = recipientSnap.val();
+        sendNotificationEmail(
+          recipient.email,
+          recipient.displayName,
+          state.profile.displayName,
+          text,
+          conv.listingTitle
+        );
+      }
     } catch (err) { console.error(err); toast('Failed to send', 'error'); }
   });
 }
