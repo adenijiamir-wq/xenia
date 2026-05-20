@@ -1,63 +1,112 @@
-import { initializeApp }               from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getDatabase }                 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
-const firebaseConfig = {
-  apiKey:            "AIzaSyBUeG9xUQInB6kCQyVh4u7ZYZpQ2fIPoq0",
-  authDomain:        "xenia-d9346.firebaseapp.com",
-  databaseURL:       "https://xenia-d9346-default-rtdb.firebaseio.com",
-  projectId:         "xenia-d9346",
-  storageBucket:     "xenia-d9346.firebasestorage.app",
-  messagingSenderId: "582964075898",
-  appId:             "1:582964075898:web:9564bd38b0bb5453dc4ac3"
-};
-
-const firebaseApp = initializeApp(firebaseConfig);
-export const auth           = getAuth(firebaseApp);
-export const rtdb           = getDatabase(firebaseApp);
-export const googleProvider = new GoogleAuthProvider();
-
-export const CLOUD = { name: "dvm9w1a5a", preset: "Xenia upload" };
-
-// EmailJS — free email notifications (200/month)
-// Set up at https://www.emailjs.com then fill in these values
-export const EMAILJS = {
-  publicKey:  "YOUR_PUBLIC_KEY",    // EmailJS dashboard → Account → Public Key
-  serviceId:  "YOUR_SERVICE_ID",    // EmailJS dashboard → Email Services → Service ID
-  templateId: "YOUR_TEMPLATE_ID"    // EmailJS dashboard → Email Templates → Template ID
-};
-
-export async function uploadImage(file) {
-  if (!file) return null;
-  if (file.size > 10 * 1024 * 1024) throw new Error("Image too large (max 10 MB)");
-  const fd = new FormData();
-  fd.append("file", file);
-  fd.append("upload_preset", CLOUD.preset);
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD.name}/image/upload`, { method: "POST", body: fd });
-  const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
-  return data.secure_url;
-}
-
-export async function sendNotificationEmail(toEmail, toName, fromName, message, listingTitle) {
-  if (EMAILJS.publicKey === "YOUR_PUBLIC_KEY") return; // Skip if not configured
-  try {
-    await fetch("https://api.emailjs.com/api/v1.0/email/send", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        service_id:  EMAILJS.serviceId,
-        template_id: EMAILJS.templateId,
-        user_id:     EMAILJS.publicKey,
-        template_params: {
-          to_email:   toEmail,
-          to_name:    toName,
-          from_name:  fromName,
-          message:    message,
-          listing:    listingTitle || "a listing",
-          site_url:   "https://xenia-market.netlify.app"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#CC0033">
+  <meta name="google-site-verification" content="RTKWEL65uTo-gOR2Y9DkD4EDvXySClbPU3WeQ8qzdpI" />
+  <title>XENIA — List it. Get found. Get paid.</title>
+  <meta name="description" content="Baked goods, braids, tutoring, photography, repairs — if you make it or do it, someone needs it. List on Xenia and start earning.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            scarlet: { 50:'#fef2f2',100:'#fee2e2',200:'#fecaca',500:'#CC0033',600:'#b30029',700:'#991f1f',900:'#450011' },
+            ink: { 50:'#f9fafb',100:'#f3f4f6',200:'#e5e7eb',300:'#d1d5db',400:'#9ca3af',500:'#6b7280',600:'#4b5563',700:'#374151',800:'#1f2937',900:'#111827' }
+          },
+          fontFamily: { sans: ['Inter','system-ui','sans-serif'] }
         }
-      })
-    });
-  } catch(e) { console.warn("Email notification failed:", e); }
-}
+      }
+    }
+  </script>
+</head>
+<body class="bg-white text-ink-900 font-sans">
+
+  <header class="sticky top-0 z-40 bg-white border-b border-ink-200">
+    <div class="max-w-7xl mx-auto px-4 h-14 flex items-center gap-3">
+      <a href="#home" class="text-2xl font-black text-scarlet-500 tracking-tight shrink-0">XENIA</a>
+      <div class="flex-1 max-w-md mx-auto hidden sm:block">
+        <div class="relative">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <input id="searchBar" type="text" placeholder="Search products & services..." class="w-full bg-ink-100 rounded-full pl-10 pr-4 py-2 text-sm placeholder-ink-400 border-0 focus:ring-2 focus:ring-scarlet-200 focus:bg-white outline-none">
+        </div>
+      </div>
+      <div class="flex items-center gap-1 ml-auto relative">
+        <button id="btnMessages" class="p-2 rounded-full hover:bg-ink-100 relative">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+          <span id="msgBadge" class="hidden absolute -top-0.5 -right-0.5 bg-scarlet-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1"></span>
+        </button>
+        <button id="btnSellDesktop" class="hidden sm:flex items-center gap-1.5 bg-scarlet-500 hover:bg-scarlet-600 text-white text-sm font-semibold px-4 py-2 rounded-full ml-1 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+          Sell
+        </button>
+        <button id="btnAvatar" class="p-1 rounded-full hover:bg-ink-100 ml-1">
+          <div id="navAvatarWrap" class="w-8 h-8 rounded-full bg-ink-200 flex items-center justify-center text-ink-500">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+          </div>
+        </button>
+        <div id="userMenu" class="hidden absolute right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-ink-200 py-1.5 w-56 z-50"></div>
+      </div>
+    </div>
+    <div class="px-4 pb-2 sm:hidden">
+      <div class="relative">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input id="searchBarMobile" type="text" placeholder="Search..." class="w-full bg-ink-100 rounded-full pl-10 pr-4 py-2 text-sm placeholder-ink-400 border-0 outline-none">
+      </div>
+    </div>
+    <nav class="border-t border-ink-100 overflow-x-auto scrollbar-hide">
+      <div class="max-w-7xl mx-auto px-4 flex gap-1 h-10 items-center text-sm whitespace-nowrap">
+        <a href="#home" data-nav="home" class="nav-link">Home</a>
+        <a href="#products" data-nav="products" class="nav-link">Products</a>
+        <a href="#services" data-nav="services" class="nav-link">Services</a>
+        <a href="#my-listings" data-nav="my-listings" class="nav-link">My listings</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="app" class="max-w-7xl mx-auto min-h-screen"></main>
+
+  <!-- Footer -->
+  <footer class="bg-ink-900 text-white mt-16">
+    <div class="max-w-7xl mx-auto px-4 py-12">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-8 mb-8">
+        <div>
+          <h3 class="text-2xl font-black text-scarlet-500 mb-3">XENIA</h3>
+          <p class="text-ink-400 text-sm leading-relaxed">The marketplace for everyone with something to offer. List it. Get found. Get paid.</p>
+        </div>
+        <div>
+          <h4 class="font-bold mb-3">Browse</h4>
+          <div class="space-y-2">
+            <a href="#products" class="block text-ink-400 hover:text-white text-sm transition">Products</a>
+            <a href="#services" class="block text-ink-400 hover:text-white text-sm transition">Services</a>
+            <a href="#sell" class="block text-ink-400 hover:text-white text-sm transition">Sell something</a>
+          </div>
+        </div>
+        <div>
+          <h4 class="font-bold mb-3">Contact</h4>
+          <a href="mailto:adenijiamir@gmail.com" class="block text-ink-400 hover:text-white text-sm transition mb-2">adenijiamir@gmail.com</a>
+          <p class="text-ink-500 text-xs mt-4">Built in Newark, NJ</p>
+        </div>
+      </div>
+      <div class="border-t border-ink-800 pt-6 text-center">
+        <p class="text-ink-500 text-xs">© 2026 Xenia. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+  <button id="btnSellMobile" class="sm:hidden fixed bottom-5 right-5 bg-scarlet-500 hover:bg-scarlet-600 text-white rounded-full shadow-xl w-14 h-14 flex items-center justify-center z-30 transition">
+    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+  </button>
+
+  <div id="modalRoot"></div>
+  <div id="toastRoot" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 pointer-events-none w-full max-w-sm px-4"></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
