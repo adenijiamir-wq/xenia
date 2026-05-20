@@ -196,7 +196,12 @@ export async function renderListing(id) {
               </div>
               <button onclick="window.deleteListing('${l.id}')" class="w-full text-scarlet-500 hover:bg-scarlet-50 font-medium py-2.5 rounded-full text-sm mt-2 transition">Delete listing</button>
             ` : `
-              <button onclick="window.messageSeller('${l.id}','${l.sellerId}')" class="w-full bg-scarlet-500 hover:bg-scarlet-600 text-white font-bold py-3.5 rounded-full mb-2 transition">Message seller</button>
+              <div class="flex gap-2 mb-2">
+                <button onclick="window.messageSeller('${l.id}','${l.sellerId}')" class="flex-1 bg-scarlet-500 hover:bg-scarlet-600 text-white font-bold py-3.5 rounded-full transition">Message seller</button>
+                <button onclick="window.shareListing('${l.id}','${escapeHtml(l.title)}')" class="px-5 bg-ink-100 hover:bg-ink-200 font-medium py-3.5 rounded-full transition" title="Share">
+                  <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+                </button>
+              </div>
               <button onclick="window.reportListing('${l.id}','${l.sellerId}')" class="w-full text-ink-400 hover:bg-ink-50 text-sm py-2 rounded-full transition">Report this listing</button>
             `}
           </div>
@@ -504,6 +509,22 @@ window.deleteListing = async (id) => {
   await remove(ref(rtdb, `listings/${id}`));
   toast('Deleted');
   window.navigate('#my-listings');
+};
+
+window.shareListing = async (id, title) => {
+  const url = `${location.origin}/#listing/${id}`;
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: `${title} — Xenia`, url });
+    } catch(e) { /* user cancelled share */ }
+  } else {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast('Link copied!', 'success');
+    } catch(e) {
+      prompt('Copy this link:', url);
+    }
+  }
 };
 
 window.reportListing = async (lid, sid) => {
