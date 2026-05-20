@@ -19,6 +19,14 @@ export const googleProvider = new GoogleAuthProvider();
 
 export const CLOUD = { name: "dvm9w1a5a", preset: "Xenia upload" };
 
+// EmailJS — free email notifications (200/month)
+// Set up at https://www.emailjs.com then fill in these values
+export const EMAILJS = {
+  publicKey:  "YOUR_PUBLIC_KEY",    // EmailJS dashboard → Account → Public Key
+  serviceId:  "YOUR_SERVICE_ID",    // EmailJS dashboard → Email Services → Service ID
+  templateId: "YOUR_TEMPLATE_ID"    // EmailJS dashboard → Email Templates → Template ID
+};
+
 export async function uploadImage(file) {
   if (!file) return null;
   if (file.size > 10 * 1024 * 1024) throw new Error("Image too large (max 10 MB)");
@@ -29,4 +37,27 @@ export async function uploadImage(file) {
   const data = await res.json();
   if (data.error) throw new Error(data.error.message);
   return data.secure_url;
+}
+
+export async function sendNotificationEmail(toEmail, toName, fromName, message, listingTitle) {
+  if (EMAILJS.publicKey === "YOUR_PUBLIC_KEY") return; // Skip if not configured
+  try {
+    await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        service_id:  EMAILJS.serviceId,
+        template_id: EMAILJS.templateId,
+        user_id:     EMAILJS.publicKey,
+        template_params: {
+          to_email:   toEmail,
+          to_name:    toName,
+          from_name:  fromName,
+          message:    message,
+          listing:    listingTitle || "a listing",
+          site_url:   "https://xenia-market.netlify.app"
+        }
+      })
+    });
+  } catch(e) { console.warn("Email notification failed:", e); }
 }
