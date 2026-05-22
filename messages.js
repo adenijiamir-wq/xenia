@@ -1,5 +1,5 @@
 import {
-  ref, get, set, push, update, onValue
+  ref, get, set, push, update, onValue, onChildAdded
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 import { rtdb, sendNotificationEmail } from './config.js';
@@ -126,36 +126,35 @@ export async function renderConversation(convId) {
   // Clear unread for the current user
   try { await update(ref(rtdb, `conversations/${convId}/unread`), { [state.user.uid]: 0 }); } catch(e) {}
 
-  // Shared render function
-  const drawMessages = (msgs) => {
+  // Track rendered messages to prevent duplicates
+  const renderedIds = new Set();
+
+  // Append a single message to the thread
+  const appendMessage = (msg) => {
+    if (!msg.id || renderedIds.has(msg.id)) return;
+    renderedIds.add(msg.id);
     const thread = document.getElementById('msgThread');
     if (!thread) return;
-    msgs.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-    thread.innerHTML = msgs.map(m => {
-      const mine = m.senderId === state.user.uid;
-      return `
-        <div class="flex ${mine ? 'justify-end' : 'justify-start'}">
-          <div class="${mine ? 'bubble-out' : 'bubble-in'} px-3.5 py-2 max-w-[75%]">
-            <p class="whitespace-pre-wrap break-words text-sm leading-relaxed">${escapeHtml(m.text)}</p>
-            <p class="text-[10px] mt-0.5 text-right ${mine ? 'text-scarlet-200' : 'text-ink-400'}">${timeAgo(m.timestamp)}</p>
-          </div>
-        </div>`;
-    }).join('');
-    thread.scrollTop = thread.scrollHeight;
+    const mine = msg.senderId === state.user.uid;
+    const bubble = document.createElement('div');
+    bubble.className = `flex ${mine ? 'justify-end' : 'justify-start'}`;
+    bubble.innerHTML = `
+      <div class="${mine ? 'bubble-out' : 'bubble-in'} px-3.5 py-2 max-w-[75%]">
+        <p class="whitespace-pre-wrap break-words text-sm leading-relaxed">${escapeHtml(msg.text)}</p>
+        <p class="text-[10px] mt-0.5 text-right ${mine ? 'text-scarlet-200' : 'text-ink-400'}">${timeAgo(msg.timestamp)}</p>
+      </div>`;
+    thread.appendChild(bubble);
+    requestAnimationFrame(() => { thread.scrollTop = thread.scrollHeight; });
   };
 
-  // Real-time listener
+  // Real-time listener — fires once per new message (more reliable than onValue)
   const msgsRef = ref(rtdb, `messages/${convId}`);
-  const unsubMsg = onValue(msgsRef, snap => {
-    const msgs = [];
-    if (snap.exists()) {
-      snap.forEach(child => msgs.push({ id: child.key, ...child.val() }));
-    }
-    drawMessages(msgs);
+  const unsubMsg = onChildAdded(msgsRef, (snap) => {
+    appendMessage({ id: snap.key, ...snap.val() });
   });
   state.unsubscribes.push(unsubMsg);
 
-  // Send message handler (with manual refresh fallback)
+  // Send message handler with optimistic update
   document.getElementById('msgForm').addEventListener('submit', async e => {
     e.preventDefault();
     const input = document.getElementById('msgInput');
@@ -164,9 +163,14 @@ export async function renderConversation(convId) {
     input.value = '';
 
     try {
-      // Save the message
       const msgRef = push(ref(rtdb, `messages/${convId}`));
-      await set(msgRef, { senderId: state.user.uid, text, timestamp: Date.now() });
+      const msgData = { senderId: state.user.uid, text, timestamp: Date.now() };
+
+      // Optimistic update — show the message instantly
+      appendMessage({ id: msgRef.key, ...msgData });
+
+      // Save to database (onChildAdded will skip because already rendered)
+      await set(msgRef, msgData);
 
       // Update conversation metadata
       const currentUnread = (await get(ref(rtdb, `conversations/${convId}/unread/${otherId}`))).val() || 0;
@@ -175,17 +179,7 @@ export async function renderConversation(convId) {
         lastMessageAt: Date.now(),
         [`unread/${otherId}`]: currentUnread + 1
       });
-
-      // MANUAL REFRESH — guarantees UI updates even if listener has issues
-      const allMsgsSnap = await get(msgsRef);
-      const allMsgs = [];
-      if (allMsgsSnap.exists()) {
-        allMsgsSnap.forEach(child => allMsgs.push({ id: child.key, ...child.val() }));
-      }
-      drawMessages(allMsgs);
-
-      // NOTE: No email sent here — emails only fire ONCE per conversation
-      // (when conversation is first created in messageSeller)
+      // No email here — emails only fire on FIRST contact (in messageSeller)
     } catch (err) {
       console.error('[Xenia] Failed to send message:', err);
       toast('Failed to send', 'error');
@@ -206,7 +200,7 @@ export async function messageSeller(listingId, sellerId) {
     } catch(e) {}
   }
 
-  // Look for existing conversation between same two users about same listing
+  // Look for existing conversation
   const myConvsSnap = await get(ref(rtdb, `userConversations/${state.user.uid}`));
   if (myConvsSnap.exists()) {
     const convIds = Object.keys(myConvsSnap.val());
@@ -215,7 +209,7 @@ export async function messageSeller(listingId, sellerId) {
       if (cs.exists()) {
         const data = cs.val();
         if (data.participants?.[sellerId] && data.listingId === (listingId ?? null)) {
-          // Existing conversation — just open it, NO email
+          // Existing conversation — just open, NO email
           window.navigate(`#messages/${cid}`);
           return;
         }
@@ -246,7 +240,7 @@ export async function messageSeller(listingId, sellerId) {
   await set(ref(rtdb, `userConversations/${state.user.uid}/${convId}`), true);
   await set(ref(rtdb, `userConversations/${sellerId}/${convId}`), true);
 
-  // ONE-TIME email to seller — only when conversation is first created
+  // ONE-TIME email when conversation is first created
   if (seller.email) {
     sendNotificationEmail(
       seller.email,
