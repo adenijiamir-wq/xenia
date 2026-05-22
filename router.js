@@ -1,6 +1,6 @@
 import { state, cleanupListeners } from './state.js';
 import { $$ } from './helpers.js';
-import { renderHome, renderListings, renderListing, renderMyListings, renderSell } from './listings.js';
+import { renderHome, renderListings, renderListing, renderMyListings, renderSell, renderSaved } from './listings.js';
 import { renderMessages, renderConversation } from './messages.js';
 import { renderUserProfile, renderEditProfile } from './profile.js';
 
@@ -44,6 +44,7 @@ export async function handleRoute() {
     case 'sell':        return requireAuth(() => renderSell());
     case 'edit-listing':return requireAuth(() => renderSell(param));
     case 'my-listings': return requireAuth(() => renderMyListings());
+    case 'saved':       return requireAuth(() => renderSaved());
     case 'messages':    return requireAuth(() => param ? renderConversation(param) : renderMessages());
     case 'user':        return param ? renderUserProfile(param) : navigate('#home');
     case 'profile':     return requireAuth(() => renderEditProfile());
