@@ -1,63 +1,121 @@
-import { initializeApp }               from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getDatabase }                 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+// ── Entry point — loaded as ES module from index.html ────────
+import { state } from './state.js';
+import { avatarHtml, toast, $ } from './helpers.js';
+import { initAuthObserver, openAuth, watchUnread } from './auth.js';
+import { handleRoute, navigate } from './router.js';
 
-const firebaseConfig = {
-  apiKey:            "AIzaSyBUeG9xUQInB6kCQyVh4u7ZYZpQ2fIPoq0",
-  authDomain:        "xenia-d9346.firebaseapp.com",
-  databaseURL:       "https://xenia-d9346-default-rtdb.firebaseio.com",
-  projectId:         "xenia-d9346",
-  storageBucket:     "xenia-d9346.firebasestorage.app",
-  messagingSenderId: "582964075898",
-  appId:             "1:582964075898:web:9564bd38b0bb5453dc4ac3"
-};
+// ── Avatar refresh (called after profile save) ────────────────
+function refreshAvatar() {
+  const wrap = document.getElementById('navAvatarWrap');
+  if (!wrap) return;
+  if (state.user && state.profile) {
+    wrap.outerHTML = `<div id="navAvatarWrap">${avatarHtml(state.profile, 'sm')}</div>`;
+  } else {
+    wrap.outerHTML = `<div id="navAvatarWrap" class="w-8 h-8 rounded-full bg-ink-200 flex items-center justify-center text-ink-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></div>`;
+  }
+}
+window.refreshAvatar = refreshAvatar;
 
-const firebaseApp = initializeApp(firebaseConfig);
-export const auth           = getAuth(firebaseApp);
-export const rtdb           = getDatabase(firebaseApp);
-export const googleProvider = new GoogleAuthProvider();
+// ── User dropdown ────────────────────────────────────────────
+function buildUserMenu() {
+  const menu = document.getElementById('userMenu');
+  if (!menu) return;
 
-export const CLOUD = { name: "dvm9w1a5a", preset: "Xenia upload" };
-
-// EmailJS — free email notifications (200/month)
-// Set up at https://www.emailjs.com then fill in these values
-export const EMAILJS = {
-  publicKey:  "hGW7vjG5bJZbW2Vls",
-  serviceId:  "service_r5sxn0n",
-  templateId: "template_2l9424x"
-};
-
-export async function uploadImage(file) {
-  if (!file) return null;
-  if (file.size > 10 * 1024 * 1024) throw new Error("Image too large (max 10 MB)");
-  const fd = new FormData();
-  fd.append("file", file);
-  fd.append("upload_preset", CLOUD.preset);
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD.name}/image/upload`, { method: "POST", body: fd });
-  const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
-  return data.secure_url;
+  if (state.user && state.profile) {
+    menu.innerHTML = `
+      <a href="#user/${state.user.uid}" onclick="closeUserMenu()" class="block px-4 py-3 hover:bg-ink-50 border-b border-ink-100">
+        <p class="font-semibold text-sm truncate">${state.profile.displayName ?? ''}</p>
+        <p class="text-xs text-ink-400 truncate">${state.user.email ?? ''}</p>
+      </a>
+      <a href="#my-listings" onclick="closeUserMenu()" class="block px-4 py-2.5 hover:bg-ink-50 text-sm">My listings</a>
+      <a href="#saved" onclick="closeUserMenu()" class="block px-4 py-2.5 hover:bg-ink-50 text-sm">Saved listings</a>
+      <a href="#messages"    onclick="closeUserMenu()" class="block px-4 py-2.5 hover:bg-ink-50 text-sm">Messages</a>
+      <a href="#profile"     onclick="closeUserMenu()" class="block px-4 py-2.5 hover:bg-ink-50 text-sm">Edit profile</a>
+      <div class="border-t border-ink-100 my-1"></div>
+      <button onclick="closeUserMenu();window.doSignOut()" class="block w-full text-left px-4 py-2.5 hover:bg-ink-50 text-sm text-scarlet-500">Sign out</button>
+    `;
+  } else {
+    menu.innerHTML = `
+      <button onclick="closeUserMenu();window.openAuth('signin')" class="block w-full text-left px-4 py-3 hover:bg-ink-50 text-sm font-semibold">Sign in</button>
+      <div class="border-t border-ink-100"></div>
+      <button onclick="closeUserMenu();window.openAuth('signup')" class="block w-full text-left px-4 py-3 hover:bg-ink-50 text-sm font-semibold text-scarlet-500">Create account</button>
+    `;
+  }
 }
 
-export async function sendNotificationEmail(toEmail, toName, fromName, message, listingTitle) {
-  if (EMAILJS.publicKey === "YOUR_PUBLIC_KEY") return; // Skip if not configured
-  try {
-    await fetch("https://api.emailjs.com/api/v1.0/email/send", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        service_id:  EMAILJS.serviceId,
-        template_id: EMAILJS.templateId,
-        user_id:     EMAILJS.publicKey,
-        template_params: {
-          to_email:   toEmail,
-          to_name:    toName,
-          from_name:  fromName,
-          message:    message,
-          listing:    listingTitle || "a listing",
-          site_url:   "https://xenia-market.netlify.app"
-        }
-      })
-    });
-  } catch(e) { console.warn("Email notification failed:", e); }
+function openUserMenu() {
+  buildUserMenu();
+  document.getElementById('userMenu')?.classList.remove('hidden');
 }
+function closeUserMenu() {
+  document.getElementById('userMenu')?.classList.add('hidden');
+}
+window.closeUserMenu = closeUserMenu;
+
+// ── Sell shortcut ────────────────────────────────────────────
+window.openSell = () => {
+  if (!state.user) { window.openAuth(); return; }
+  navigate('#sell');
+};
+
+// ── Search ───────────────────────────────────────────────────
+let _searchTimeout;
+['searchBar', 'searchBarMobile'].forEach(id => {
+  document.getElementById(id)?.addEventListener('input', () => {
+    clearTimeout(_searchTimeout);
+    _searchTimeout = setTimeout(() => {
+      const route = location.hash.slice(1).split('/')[0];
+      if (route === 'products' || route === 'services') {
+        window._triggerSearch?.();
+      } else if (document.getElementById(id)?.value.trim()) {
+        navigate('#products');
+      }
+    }, 250);
+  });
+});
+
+// ── Header button wiring ──────────────────────────────────────
+document.getElementById('btnAvatar')?.addEventListener('click', e => {
+  e.stopPropagation();
+  const menu = document.getElementById('userMenu');
+  if (menu?.classList.contains('hidden')) openUserMenu();
+  else closeUserMenu();
+});
+
+document.getElementById('btnMessages')?.addEventListener('click', () => {
+  if (!state.user) { window.openAuth(); return; }
+  navigate('#messages');
+});
+
+document.getElementById('btnSellDesktop')?.addEventListener('click', () => window.openSell());
+document.getElementById('btnSellMobile')?.addEventListener('click',   () => window.openSell());
+
+// Close menu when clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('#btnAvatar') && !e.target.closest('#userMenu')) closeUserMenu();
+});
+
+// ── Auth observer ─────────────────────────────────────────────
+initAuthObserver(
+  // signed in
+  async (user) => {
+    refreshAvatar();
+    watchUnread();
+    handleRoute();
+  },
+  // signed out
+  () => {
+    refreshAvatar();
+    const route = location.hash.slice(1).split('/')[0];
+    const authRoutes = ['my-listings', 'messages', 'profile', 'sell', 'edit-listing', 'user'];
+    if (authRoutes.includes(route)) {
+      navigate('#home');
+    } else {
+      handleRoute();
+    }
+  }
+);
+
+// ── Init router ───────────────────────────────────────────────
+if (!location.hash || location.hash === '#') location.hash = '#home';
+// handleRoute is called by initAuthObserver after auth state resolves
