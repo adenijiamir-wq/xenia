@@ -5,6 +5,7 @@ import {
 import { rtdb, uploadImage } from './config.js';
 import { state } from './state.js';
 import { $, $$, escapeHtml, toast, setHtml, skeletonGrid, listingCard, avatarHtml, timeAgo, showModal, closeModal } from './helpers.js';
+import { createNotification } from './messages.js';
 
 // Module-level favorites set
 let userFavorites = new Set();
@@ -549,6 +550,17 @@ window._confirmSold = async (listingId) => {
         const newRating = ((oldRating * oldCount) + rating) / newCount;
         await update(ref(rtdb, `users/${buyerId}`), { rating: Math.round(newRating * 10) / 10, reviewCount: newCount });
       }
+
+      // In-app notification to buyer
+      createNotification(buyerId, {
+        type: 'review',
+        title: `${state.profile.displayName} left you a ${rating}-star review`,
+        body: comment || `Rating: ${'★'.repeat(rating)}`,
+        link: `#user/${state.user.uid}`,
+        fromUserId: state.user.uid,
+        fromUserName: state.profile.displayName,
+        fromUserPhoto: state.profile.photoURL || null
+      });
     }
 
     closeModal();
