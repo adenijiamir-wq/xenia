@@ -1,5 +1,5 @@
 import {
-  ref, get, set, push, update, onValue, off
+  ref, get, set, push, update, onValue
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 import { rtdb, sendNotificationEmail } from './config.js';
@@ -62,7 +62,7 @@ export async function renderMessages() {
     }).join('');
   });
 
-  state.unsubscribes.push(() => off(userConvsRef));
+  state.unsubscribes.push(unsub);
 }
 
 // ── Conversation ─────────────────────────────────────────────
@@ -84,6 +84,10 @@ export async function renderConversation(convId) {
   const otherId = Object.keys(participants).find(p => p !== state.user.uid);
   const other   = conv.participantInfo?.[otherId] ?? {};
 
+  // Fetch other user's phone for contact info
+  const otherFullSnap = await get(ref(rtdb, `users/${otherId}`));
+  if (otherFullSnap.exists()) other.phone = otherFullSnap.val().phone || '';
+
   setHtml(app, `
     <div class="max-w-2xl mx-auto flex flex-col" style="height:calc(100vh - 120px)">
       <div class="px-4 py-3 border-b border-ink-200 shrink-0">
@@ -101,6 +105,7 @@ export async function renderConversation(convId) {
         </div>
         <div class="mt-3 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs text-amber-800">
           <strong>Safe meetup tip:</strong> Meet in public spots. Inspect the item before paying.
+          ${other.phone ? `<span class="ml-2">· <a href="tel:${escapeHtml(other.phone)}" class="font-semibold underline">${escapeHtml(other.phone)}</a></span>` : ''}
         </div>
       </div>
 
@@ -118,20 +123,14 @@ export async function renderConversation(convId) {
     </div>
   `);
 
-  // Clear unread
+  // Clear unread for the current user
   try { await update(ref(rtdb, `conversations/${convId}/unread`), { [state.user.uid]: 0 }); } catch(e) {}
 
-  // Real-time messages
-  const msgsRef = ref(rtdb, `messages/${convId}`);
-  const unsub = onValue(msgsRef, snap => {
+  // Shared render function
+  const drawMessages = (msgs) => {
     const thread = document.getElementById('msgThread');
     if (!thread) return;
-    const msgs = [];
-    if (snap.exists()) {
-      snap.forEach(child => msgs.push({ id: child.key, ...child.val() }));
-    }
     msgs.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-
     thread.innerHTML = msgs.map(m => {
       const mine = m.senderId === state.user.uid;
       return `
@@ -143,20 +142,33 @@ export async function renderConversation(convId) {
         </div>`;
     }).join('');
     thread.scrollTop = thread.scrollHeight;
-  });
-  state.unsubscribes.push(() => off(msgsRef));
+  };
 
-  // Send message
+  // Real-time listener
+  const msgsRef = ref(rtdb, `messages/${convId}`);
+  const unsubMsg = onValue(msgsRef, snap => {
+    const msgs = [];
+    if (snap.exists()) {
+      snap.forEach(child => msgs.push({ id: child.key, ...child.val() }));
+    }
+    drawMessages(msgs);
+  });
+  state.unsubscribes.push(unsubMsg);
+
+  // Send message handler (with manual refresh fallback)
   document.getElementById('msgForm').addEventListener('submit', async e => {
     e.preventDefault();
     const input = document.getElementById('msgInput');
     const text = input.value.trim();
     if (!text) return;
     input.value = '';
+
     try {
+      // Save the message
       const msgRef = push(ref(rtdb, `messages/${convId}`));
       await set(msgRef, { senderId: state.user.uid, text, timestamp: Date.now() });
 
+      // Update conversation metadata
       const currentUnread = (await get(ref(rtdb, `conversations/${convId}/unread/${otherId}`))).val() || 0;
       await update(ref(rtdb, `conversations/${convId}`), {
         lastMessage: text,
@@ -164,19 +176,20 @@ export async function renderConversation(convId) {
         [`unread/${otherId}`]: currentUnread + 1
       });
 
-      // Send email notification to recipient
-      const recipientSnap = await get(ref(rtdb, `users/${otherId}`));
-      if (recipientSnap.exists()) {
-        const recipient = recipientSnap.val();
-        sendNotificationEmail(
-          recipient.email,
-          recipient.displayName,
-          state.profile.displayName,
-          text,
-          conv.listingTitle
-        );
+      // MANUAL REFRESH — guarantees UI updates even if listener has issues
+      const allMsgsSnap = await get(msgsRef);
+      const allMsgs = [];
+      if (allMsgsSnap.exists()) {
+        allMsgsSnap.forEach(child => allMsgs.push({ id: child.key, ...child.val() }));
       }
-    } catch (err) { console.error(err); toast('Failed to send', 'error'); }
+      drawMessages(allMsgs);
+
+      // NOTE: No email sent here — emails only fire ONCE per conversation
+      // (when conversation is first created in messageSeller)
+    } catch (err) {
+      console.error('[Xenia] Failed to send message:', err);
+      toast('Failed to send', 'error');
+    }
   });
 }
 
@@ -193,7 +206,7 @@ export async function messageSeller(listingId, sellerId) {
     } catch(e) {}
   }
 
-  // Look for existing conversation
+  // Look for existing conversation between same two users about same listing
   const myConvsSnap = await get(ref(rtdb, `userConversations/${state.user.uid}`));
   if (myConvsSnap.exists()) {
     const convIds = Object.keys(myConvsSnap.val());
@@ -202,6 +215,7 @@ export async function messageSeller(listingId, sellerId) {
       if (cs.exists()) {
         const data = cs.val();
         if (data.participants?.[sellerId] && data.listingId === (listingId ?? null)) {
+          // Existing conversation — just open it, NO email
           window.navigate(`#messages/${cid}`);
           return;
         }
@@ -209,7 +223,7 @@ export async function messageSeller(listingId, sellerId) {
     }
   }
 
-  // Create new conversation
+  // Create NEW conversation
   const sellerSnap = await get(ref(rtdb, `users/${sellerId}`));
   const seller = sellerSnap.exists() ? sellerSnap.val() : {};
 
@@ -229,10 +243,21 @@ export async function messageSeller(listingId, sellerId) {
   };
 
   await set(convRef, conv);
-  // Index for both users
   await set(ref(rtdb, `userConversations/${state.user.uid}/${convId}`), true);
   await set(ref(rtdb, `userConversations/${sellerId}/${convId}`), true);
 
+  // ONE-TIME email to seller — only when conversation is first created
+  if (seller.email) {
+    sendNotificationEmail(
+      seller.email,
+      seller.displayName,
+      state.profile.displayName,
+      `Someone is interested in your listing "${listingTitle}". Open Xenia to chat with them and close the deal.`,
+      listingTitle
+    );
+  }
+
+  toast('Conversation started!', 'success');
   window.navigate(`#messages/${convId}`);
 }
 window.messageSeller = messageSeller;
