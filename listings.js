@@ -6,6 +6,38 @@ import { rtdb, uploadImage } from './config.js';
 import { state } from './state.js';
 import { $, $$, escapeHtml, toast, setHtml, skeletonGrid, listingCard, avatarHtml, timeAgo, showModal, closeModal } from './helpers.js';
 
+// Module-level favorites set
+let userFavorites = new Set();
+
+export async function loadFavorites() {
+  if (!state.user) { userFavorites = new Set(); return; }
+  const snap = await get(ref(rtdb, `favorites/${state.user.uid}`));
+  userFavorites = snap.exists() ? new Set(Object.keys(snap.val())) : new Set();
+}
+
+window.toggleFavorite = async (listingId) => {
+  if (!state.user) { window.openAuth(); return; }
+  const isFav = userFavorites.has(listingId);
+  const favRef = ref(rtdb, `favorites/${state.user.uid}/${listingId}`);
+  if (isFav) {
+    await remove(favRef);
+    userFavorites.delete(listingId);
+    toast('Removed from saved');
+  } else {
+    await set(favRef, true);
+    userFavorites.add(listingId);
+    toast('Saved!', 'success');
+  }
+  // Update heart UI without re-rendering
+  const btn = document.getElementById(`fav-${listingId}`);
+  if (btn) {
+    const svg = btn.querySelector('svg');
+    if (svg) {
+      svg.className = `w-4 h-4 ${userFavorites.has(listingId) ? 'fill-scarlet-500 text-scarlet-500' : 'fill-none text-ink-400'}`;
+    }
+  }
+};
+
 // ── Helper: fetch all listings from RTDB and filter ─────────
 async function fetchListings(filters = {}) {
   const snap = await get(ref(rtdb, 'listings'));
@@ -39,6 +71,20 @@ export async function renderHome() {
     </section>
 
     <section class="px-4 py-10">
+      ${state.user && !state.profile?.phone && !state.profile?.photoURL ? `
+        <div class="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-4 mb-6 flex items-start gap-3">
+          <div class="text-2xl shrink-0">👋</div>
+          <div class="flex-1">
+            <p class="font-bold text-amber-900">Welcome to Xenia!</p>
+            <p class="text-sm text-amber-800 mt-0.5">Add your photo and phone number so buyers can trust you, then list something you offer.</p>
+            <div class="flex gap-2 mt-3">
+              <a href="#profile" class="bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-4 py-2 rounded-full transition">Complete profile</a>
+              <button onclick="window.openSell()" class="bg-white border border-amber-300 text-amber-900 text-sm font-semibold px-4 py-2 rounded-full transition">Post a listing</button>
+            </div>
+          </div>
+          <button onclick="this.parentElement.remove()" class="text-amber-400 hover:text-amber-600 shrink-0">✕</button>
+        </div>
+      ` : ''}
       <div class="flex items-center justify-between mb-5">
         <h2 class="text-2xl font-bold">Latest listings</h2>
         <a href="#products" class="text-sm font-semibold text-scarlet-500">See all →</a>
@@ -60,11 +106,12 @@ export async function renderHome() {
   `);
 
   try {
+    await loadFavorites();
     const listings = await fetchListings({ status: 'active', limit: 8 });
     const grid = document.getElementById('homeGrid');
     if (!grid) return;
     grid.innerHTML = listings.length
-      ? listings.map(listingCard).join('')
+      ? listings.map(l => listingCard(l, userFavorites.has(l.id))).join('')
       : `<div class="col-span-full text-center py-12 text-ink-500">
            <p class="mb-3">No listings yet — be the first!</p>
            <button onclick="window.openSell()" class="bg-scarlet-500 text-white px-6 py-2.5 rounded-full font-semibold">Post a listing</button>
@@ -107,6 +154,7 @@ export async function renderListings(type) {
 
   try {
     _cached = await fetchListings({ type, status: 'active' });
+    await loadFavorites();
     _renderGrid();
   } catch (e) { console.error(e); toast('Failed to load', 'error'); }
 
@@ -132,7 +180,7 @@ function _renderGrid() {
   if (sort === 'price-high') list.sort((a, b) => b.price - a.price);
 
   grid.innerHTML = list.length
-    ? list.map(listingCard).join('')
+    ? list.map(l => listingCard(l, userFavorites.has(l.id))).join('')
     : `<div class="col-span-full text-center py-16 text-ink-500">No listings match your search.</div>`;
 }
 
@@ -171,7 +219,10 @@ export async function renderListing(id) {
             </div>
             <h1 class="text-3xl font-bold mb-2">${escapeHtml(l.title)}</h1>
             <p class="text-3xl font-black text-scarlet-500 mb-1">$${l.price}${l.type === 'service' ? '<span class="text-base font-normal text-ink-500">/hr</span>' : ''}</p>
-            <p class="text-xs text-ink-400 mb-4">${timeAgo(l.createdAt)}</p>
+            <div class="flex items-center gap-3 text-xs text-ink-400 mb-4">
+              <span>${timeAgo(l.createdAt)}</span>
+              ${l.location ? `<span class="flex items-center gap-0.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>${escapeHtml(l.location)}</span>` : ''}
+            </div>
 
             ${l.cat3?.length ? `<div class="flex flex-wrap gap-1.5 mb-5">${l.cat3.map(t => `<span class="bg-ink-100 text-ink-700 px-2.5 py-1 rounded-full text-xs font-medium">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
 
@@ -271,6 +322,10 @@ export async function renderSell(editId = null) {
           </div>
         </div>
         <div>
+          <label class="block text-sm font-bold mb-2">Location</label>
+          <input name="location" placeholder="Neighbourhood or city — e.g. Newark, NJ" class="w-full bg-ink-100 rounded-xl px-4 py-3 focus:ring-2 focus:ring-scarlet-200 focus:bg-white outline-none">
+        </div>
+        <div>
           <label class="block text-sm font-bold mb-2">Title</label>
           <input name="title" required maxlength="80" placeholder="e.g. Homemade chocolate chip cookies" class="w-full bg-ink-100 rounded-xl px-4 py-3 focus:ring-2 focus:ring-scarlet-200 focus:bg-white outline-none">
         </div>
@@ -335,6 +390,7 @@ export async function renderSell(editId = null) {
       document.querySelector('input[name="cat1"]').value = l.cat1 ?? '';
       document.querySelector('input[name="cat2"]').value = l.cat2 ?? '';
       document.querySelector('input[name="cat3"]').value = (l.cat3 ?? []).join(', ');
+      document.querySelector('input[name="location"]').value = l.location ?? '';
       document.querySelector('input[name="title"]').value = l.title ?? '';
       document.querySelector('textarea[name="description"]').value = l.description ?? '';
       document.querySelector('input[name="price"]').value = l.price ?? '';
@@ -352,6 +408,7 @@ export async function renderSell(editId = null) {
     const data = {
       type: fd.get('type'), cat1: fd.get('cat1').trim(), cat2: (fd.get('cat2') ?? '').trim(),
       cat3: (fd.get('cat3') ?? '').split(',').map(t => t.trim()).filter(Boolean),
+      location: (fd.get('location') ?? '').trim(),
       title: fd.get('title').trim(), description: fd.get('description').trim(),
       price: parseFloat(fd.get('price')), photos, status: 'active'
     };
@@ -538,4 +595,27 @@ window.reportListing = async (lid, sid) => {
 
 function _notFound() {
   document.getElementById('app').innerHTML = `<div class="px-4 py-24 text-center"><h1 class="text-4xl font-black mb-3">404</h1><p class="text-ink-500 mb-6">Not found.</p><a href="#home" class="bg-scarlet-500 text-white px-7 py-3 rounded-full font-bold">Go home</a></div>`;
+}
+
+export async function renderSaved() {
+  const app = document.getElementById('app');
+  if (!state.user) { window.openAuth(); return; }
+  setHtml(app, `<div class="px-4 py-6"><h1 class="text-3xl font-bold mb-5">Saved listings</h1><div id="savedGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">${skeletonGrid(8)}</div></div>`);
+  try {
+    const snap = await get(ref(rtdb, `favorites/${state.user.uid}`));
+    if (!snap.exists()) {
+      document.getElementById('savedGrid').innerHTML = `<div class="col-span-full text-center py-16 text-ink-500"><p>No saved listings yet.</p><p class="text-sm mt-2">Tap the heart on any listing to save it.</p></div>`;
+      return;
+    }
+    const ids = Object.keys(snap.val());
+    const listings = [];
+    for (const id of ids) {
+      const ls = await get(ref(rtdb, `listings/${id}`));
+      if (ls.exists() && ls.val().status === 'active') listings.push({ id, ...ls.val() });
+    }
+    const grid = document.getElementById('savedGrid');
+    grid.innerHTML = listings.length
+      ? listings.map(l => listingCard(l, true)).join('')
+      : `<div class="col-span-full text-center py-16 text-ink-500">Your saved listings are gone — they may have been sold.</div>`;
+  } catch(e) { console.error(e); toast('Failed to load', 'error'); }
 }
