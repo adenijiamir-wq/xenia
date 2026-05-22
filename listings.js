@@ -33,7 +33,7 @@ window.toggleFavorite = async (listingId) => {
   if (btn) {
     const svg = btn.querySelector('svg');
     if (svg) {
-      svg.className = `w-4 h-4 ${userFavorites.has(listingId) ? 'fill-scarlet-500 text-scarlet-500' : 'fill-none text-ink-400'}`;
+      svg.setAttribute('class', `w-4 h-4 ${userFavorites.has(listingId) ? 'fill-scarlet-500 text-scarlet-500' : 'fill-none text-ink-400'}`);
     }
   }
 };
