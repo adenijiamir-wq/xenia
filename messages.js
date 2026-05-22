@@ -6,6 +6,19 @@ import { rtdb, sendNotificationEmail } from './config.js';
 import { state } from './state.js';
 import { escapeHtml, toast, setHtml, avatarHtml, timeAgo } from './helpers.js';
 
+// ── Create a notification for a user ────────────────────────
+export async function createNotification(toUserId, notif) {
+  if (!toUserId || toUserId === state.user?.uid) return; // don't notify self
+  try {
+    const nRef = push(ref(rtdb, `notifications/${toUserId}`));
+    await set(nRef, {
+      ...notif,
+      read: false,
+      createdAt: Date.now()
+    });
+  } catch(e) { console.warn('[Xenia] Notification failed:', e); }
+}
+
 // ── Inbox ────────────────────────────────────────────────────
 export async function renderMessages() {
   const app = document.getElementById('app');
@@ -250,6 +263,17 @@ export async function messageSeller(listingId, sellerId) {
       listingTitle
     );
   }
+
+  // In-app notification for the seller
+  createNotification(sellerId, {
+    type: 'interest',
+    title: `${state.profile.displayName} is interested in your listing`,
+    body: listingTitle || 'a listing',
+    link: `#messages/${convId}`,
+    fromUserId: state.user.uid,
+    fromUserName: state.profile.displayName,
+    fromUserPhoto: state.profile.photoURL || null
+  });
 
   toast('Conversation started!', 'success');
   window.navigate(`#messages/${convId}`);
