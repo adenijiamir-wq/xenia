@@ -22,9 +22,9 @@ export const CLOUD = { name: "dvm9w1a5a", preset: "Xenia upload" };
 // EmailJS — free email notifications (200/month)
 // Set up at https://www.emailjs.com then fill in these values
 export const EMAILJS = {
-  publicKey:  "YOUR_PUBLIC_KEY",    // EmailJS dashboard → Account → Public Key
-  serviceId:  "YOUR_SERVICE_ID",    // EmailJS dashboard → Email Services → Service ID
-  templateId: "YOUR_TEMPLATE_ID"    // EmailJS dashboard → Email Templates → Template ID
+  publicKey:  "hGW7vjG5bJZbW2Vls",
+  serviceId:  "service_r5sxn0n",
+  templateId: "template_2l9424x"
 };
 
 export async function uploadImage(file) {
