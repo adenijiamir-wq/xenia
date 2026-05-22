@@ -28,6 +28,7 @@ function buildUserMenu() {
         <p class="text-xs text-ink-400 truncate">${state.user.email ?? ''}</p>
       </a>
       <a href="#my-listings" onclick="closeUserMenu()" class="block px-4 py-2.5 hover:bg-ink-50 text-sm">My listings</a>
+      <a href="#saved" onclick="closeUserMenu()" class="block px-4 py-2.5 hover:bg-ink-50 text-sm">Saved listings</a>
       <a href="#messages"    onclick="closeUserMenu()" class="block px-4 py-2.5 hover:bg-ink-50 text-sm">Messages</a>
       <a href="#profile"     onclick="closeUserMenu()" class="block px-4 py-2.5 hover:bg-ink-50 text-sm">Edit profile</a>
       <div class="border-t border-ink-100 my-1"></div>
